@@ -1,0 +1,7 @@
+/target
+Cargo.lock
+*.exe
+*.dll
+*.pdb
+test.bat
+test_output.bat
