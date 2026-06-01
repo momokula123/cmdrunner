@@ -967,49 +967,51 @@ fn setup_tray() {
 fn create_win32_icon() -> *mut std::ffi::c_void {
     use windows_sys::Win32::Graphics::Gdi::*;
 
-    let size = 32;
-    let mut rgba = vec![0u8; size * size * 4];
-    for y in 0..size {
-        for x in 0..size {
-            let idx = (y * size + x) * 4;
-            let cx = x as i32 - 16;
-            let cy = y as i32 - 16;
-            let dist = ((cx * cx + cy * cy) as f64).sqrt();
-            if dist < 12.0 {
-                rgba[idx] = 60;
-                rgba[idx + 1] = 180;
-                rgba[idx + 2] = 100;
-                rgba[idx + 3] = 255;
-                if dist > 10.0 {
-                    rgba[idx] = 40;
-                    rgba[idx + 1] = 140;
-                    rgba[idx + 2] = 80;
-                }
-            } else if dist < 14.0 {
-                rgba[idx] = 40;
-                rgba[idx + 1] = 140;
-                rgba[idx + 2] = 80;
-                rgba[idx + 3] = 255;
-            }
-        }
-    }
-
     unsafe {
         let hdc = GetDC(std::ptr::null_mut());
         let mem_dc = CreateCompatibleDC(hdc);
-        let bmp = CreateCompatibleBitmap(hdc, size as i32, size as i32);
+        let bmp = CreateCompatibleBitmap(hdc, 32, 32);
         let old_bmp = SelectObject(mem_dc, bmp);
 
-        for y in 0..size {
-            for x in 0..size {
-                let idx = (y * size + x) * 4;
-                let bgra = rgba[idx] as u32
-                    | ((rgba[idx + 1] as u32) << 8)
-                    | ((rgba[idx + 2] as u32) << 16)
-                    | ((rgba[idx + 3] as u32) << 24);
-                SetPixel(mem_dc, x as i32, y as i32, bgra);
-            }
+        let brush = CreateSolidBrush(0x00CC6633);
+        let old_brush = SelectObject(mem_dc, brush);
+        let pen = GetStockObject(NULL_PEN);
+        let old_pen = SelectObject(mem_dc, pen);
+        Rectangle(mem_dc, 0, 0, 32, 32);
+        SelectObject(mem_dc, old_brush);
+        DeleteObject(brush);
+        SelectObject(mem_dc, old_pen);
+
+        let white = CreateSolidBrush(0x00FFFFFF);
+        let old_brush2 = SelectObject(mem_dc, white);
+        let null_pen = GetStockObject(NULL_PEN);
+        let old_pen2 = SelectObject(mem_dc, null_pen);
+
+        let c_pixels: &[(i32, i32)] = &[
+            (8,4),(9,4),(10,4),(11,4),(12,4),(13,4),
+            (6,5),(7,5),
+            (5,6),(6,6),
+            (5,7),(6,7),
+            (5,8),(6,8),
+            (5,9),(6,9),
+            (5,10),(6,10),
+            (5,11),(6,11),
+            (5,12),(6,12),
+            (5,13),(6,13),
+            (5,14),(6,14),
+            (5,15),(6,15),
+            (5,16),(6,16),
+            (6,17),(7,17),
+            (8,18),(9,18),(10,18),(11,18),(12,18),(13,18),
+        ];
+
+        for &(x, y) in c_pixels {
+            Rectangle(mem_dc, x, y, x + 2, y + 2);
         }
+
+        SelectObject(mem_dc, old_brush2);
+        DeleteObject(white);
+        SelectObject(mem_dc, old_pen2);
 
         SelectObject(mem_dc, old_bmp);
         DeleteDC(mem_dc);
