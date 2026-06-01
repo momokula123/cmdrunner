@@ -10,8 +10,6 @@ use std::time::Duration;
 
 use eframe::egui;
 use serde::{Deserialize, Serialize};
-use tray_icon::menu::{Menu as TrayMenu, MenuEvent, PredefinedMenuItem};
-use tray_icon::{Icon, TrayIconBuilder};
 
 static MAIN_HWND: AtomicIsize = AtomicIsize::new(0);
 static TRAY_READY: AtomicBool = AtomicBool::new(false);
@@ -811,8 +809,80 @@ fn find_my_hwnd() {
     }
 }
 
+const WM_TRAYICON: u32 = 0x8000;
+const ID_TRAY_SHOW: usize = 1;
+const ID_TRAY_EXIT: usize = 2;
+
 fn setup_tray() {
-    use windows_sys::Win32::UI::WindowsAndMessaging::{SetForegroundWindow, ShowWindow, SW_SHOW};
+    use std::ffi::c_void;
+    use windows_sys::Win32::Foundation::POINT;
+    use windows_sys::Win32::UI::Shell::*;
+    use windows_sys::Win32::UI::WindowsAndMessaging::*;
+
+    unsafe extern "system" fn tray_wndproc(
+        hwnd: *mut c_void,
+        msg: u32,
+        wparam: usize,
+        lparam: isize,
+    ) -> isize {
+        match msg {
+            WM_TRAYICON => {
+                let low = lparam as u32;
+                match low {
+                    WM_RBUTTONUP => {
+                        let mut pt = POINT { x: 0, y: 0 };
+                        GetCursorPos(&mut pt);
+                        SetForegroundWindow(hwnd);
+                        let menu = CreatePopupMenu();
+                        let show_text: Vec<u16> = "显示窗口\0".encode_utf16().collect();
+                        let exit_text: Vec<u16> = "退出\0".encode_utf16().collect();
+                        AppendMenuW(menu, MF_STRING, ID_TRAY_SHOW, show_text.as_ptr());
+                        AppendMenuW(menu, MF_SEPARATOR, 0, std::ptr::null());
+                        AppendMenuW(menu, MF_STRING, ID_TRAY_EXIT, exit_text.as_ptr());
+                        let ret = TrackPopupMenu(
+                            menu,
+                            TPM_RETURNCMD | TPM_NONOTIFY,
+                            pt.x,
+                            pt.y,
+                            0,
+                            hwnd,
+                            std::ptr::null(),
+                        );
+                        DestroyMenu(menu);
+                        match ret {
+                            x if x == ID_TRAY_SHOW as i32 => {
+                                let main_hwnd =
+                                    MAIN_HWND.load(Ordering::SeqCst) as *mut c_void;
+                                if !main_hwnd.is_null() {
+                                    ShowWindow(main_hwnd, SW_SHOW);
+                                    SetForegroundWindow(main_hwnd);
+                                }
+                            }
+                            x if x == ID_TRAY_EXIT as i32 => {
+                                PostQuitMessage(0);
+                            }
+                            _ => {}
+                        }
+                        0
+                    }
+                    WM_LBUTTONDBLCLK => {
+                        let main_hwnd = MAIN_HWND.load(Ordering::SeqCst) as *mut c_void;
+                        if !main_hwnd.is_null() {
+                            ShowWindow(main_hwnd, SW_SHOW);
+                            SetForegroundWindow(main_hwnd);
+                        }
+                        0
+                    }
+                    _ => 0,
+                }
+            }
+            WM_DESTROY => {
+                PostQuitMessage(0);
+                0
+            }
+            _ => DefWindowProcW(hwnd, msg, wparam, lparam),
+        }
+    }
 
     std::thread::sleep(Duration::from_millis(500));
 
@@ -824,40 +894,79 @@ fn setup_tray() {
         std::thread::sleep(Duration::from_millis(200));
     }
 
-    let menu = TrayMenu::new();
-    let show_item = tray_icon::menu::MenuItem::new("显示窗口", true, None);
-    let exit_item = tray_icon::menu::MenuItem::new("退出", true, None);
-    let show_id = show_item.id().clone();
-    let exit_id = exit_item.id().clone();
-    menu.append(&show_item).unwrap();
-    menu.append(&PredefinedMenuItem::separator()).unwrap();
-    menu.append(&exit_item).unwrap();
+    let class_name: Vec<u16> = "CMDRunnerTray\0".encode_utf16().collect();
+    let wnd_class = WNDCLASSW {
+        style: 0,
+        lpfnWndProc: Some(tray_wndproc),
+        cbClsExtra: 0,
+        cbWndExtra: 0,
+        hInstance: std::ptr::null_mut(),
+        hIcon: std::ptr::null_mut(),
+        hCursor: std::ptr::null_mut(),
+        hbrBackground: std::ptr::null_mut(),
+        lpszMenuName: std::ptr::null(),
+        lpszClassName: class_name.as_ptr(),
+    };
 
-    let icon = create_tray_icon();
-    let _tray_icon = TrayIconBuilder::new()
-        .with_menu(Box::new(menu))
-        .with_tooltip("CMD Runner v0.6.0")
-        .with_icon(icon)
-        .build()
-        .expect("Failed to create tray icon");
+    unsafe {
+        RegisterClassW(&wnd_class);
 
-    let event_rx = MenuEvent::receiver();
-    loop {
-        if let Ok(event) = event_rx.recv() {
-            let hwnd = MAIN_HWND.load(Ordering::SeqCst) as *mut std::ffi::c_void;
-            if event.id == show_id && !hwnd.is_null() {
-                unsafe {
-                    ShowWindow(hwnd, SW_SHOW);
-                    SetForegroundWindow(hwnd);
-                }
-            } else if event.id == exit_id {
-                std::process::exit(0);
+        let tray_hwnd = CreateWindowExW(
+            0,
+            class_name.as_ptr(),
+            std::ptr::null(),
+            WS_OVERLAPPEDWINDOW,
+            0,
+            0,
+            0,
+            0,
+            HWND_MESSAGE,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        );
+
+        if tray_hwnd.is_null() {
+            return;
+        }
+
+        let mut icon_data: NOTIFYICONDATAW = std::mem::zeroed();
+        icon_data.cbSize = std::mem::size_of::<NOTIFYICONDATAW>() as u32;
+        icon_data.hWnd = tray_hwnd;
+        icon_data.uID = 1;
+        icon_data.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+        icon_data.uCallbackMessage = WM_TRAYICON;
+        icon_data.hIcon = create_win32_icon();
+
+        let tip: Vec<u16> = "CMD Runner v0.7.0\0".encode_utf16().collect();
+        for (i, &c) in tip.iter().enumerate() {
+            if i < 128 {
+                icon_data.szTip[i] = c;
             }
         }
+
+        Shell_NotifyIconW(NIM_ADD, &icon_data);
+
+        let mut msg = MSG {
+            hwnd: std::ptr::null_mut(),
+            message: 0,
+            wParam: 0,
+            lParam: 0,
+            time: 0,
+            pt: POINT { x: 0, y: 0 },
+        };
+        while GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) > 0 {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
+
+        Shell_NotifyIconW(NIM_DELETE, &icon_data);
     }
 }
 
-fn create_tray_icon() -> Icon {
+fn create_win32_icon() -> *mut std::ffi::c_void {
+    use windows_sys::Win32::Graphics::Gdi::*;
+
     let size = 32;
     let mut rgba = vec![0u8; size * size * 4];
     for y in 0..size {
@@ -884,5 +993,28 @@ fn create_tray_icon() -> Icon {
             }
         }
     }
-    Icon::from_rgba(rgba, size as u32, size as u32).unwrap()
+
+    unsafe {
+        let hdc = GetDC(std::ptr::null_mut());
+        let mem_dc = CreateCompatibleDC(hdc);
+        let bmp = CreateCompatibleBitmap(hdc, size as i32, size as i32);
+        let old_bmp = SelectObject(mem_dc, bmp);
+
+        for y in 0..size {
+            for x in 0..size {
+                let idx = (y * size + x) * 4;
+                let bgra = rgba[idx] as u32
+                    | ((rgba[idx + 1] as u32) << 8)
+                    | ((rgba[idx + 2] as u32) << 16)
+                    | ((rgba[idx + 3] as u32) << 24);
+                SetPixel(mem_dc, x as i32, y as i32, bgra);
+            }
+        }
+
+        SelectObject(mem_dc, old_bmp);
+        DeleteDC(mem_dc);
+        ReleaseDC(std::ptr::null_mut(), hdc);
+
+        bmp
+    }
 }
