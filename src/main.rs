@@ -419,7 +419,6 @@ impl eframe::App for App {
             .frame(egui::Frame::none().fill(egui::Color32::from_rgb(255, 255, 255)).inner_margin(4.0))
             .show(ctx, |ui| {
                 ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(40, 40, 40));
-                let resp = ui.scope(|ui| {
                 ui.horizontal(|ui| {
                     ui.label("📋");
                 ui.separator();
@@ -500,8 +499,8 @@ impl eframe::App for App {
                     ui.checkbox(&mut self.detect_links, "链接检测");
                 });
                 });
-                });
-                resp.response.context_menu(|ui| {
+                let r = ui.interact(ui.max_rect(), egui::Id::new("toolbar_top"), egui::Sense::click());
+                r.context_menu(|ui| {
                     ui.label(egui::RichText::new("控件: toolbar_top").color(egui::Color32::from_rgb(150,150,150)).size(11.0));
                 });
         });
@@ -510,7 +509,6 @@ impl eframe::App for App {
             .frame(egui::Frame::none().fill(egui::Color32::from_rgb(255, 255, 255)).inner_margin(4.0))
             .show(ctx, |ui| {
                 ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(40, 40, 40));
-                let resp = ui.scope(|ui| {
                 ui.horizontal(|ui| {
                     ui.label(
                         egui::RichText::new("拖拽 .bat / .cmd 文件到此窗口")
@@ -528,8 +526,8 @@ impl eframe::App for App {
                         });
                     }
                 });
-                });
-                resp.response.context_menu(|ui| {
+                let r = ui.interact(ui.max_rect(), egui::Id::new("status_bar_bottom"), egui::Sense::click());
+                r.context_menu(|ui| {
                     ui.label(egui::RichText::new("控件: status_bar_bottom").color(egui::Color32::from_rgb(150,150,150)).size(11.0));
                 });
         });
@@ -546,7 +544,6 @@ impl eframe::App for App {
             .frame(egui::Frame::none().fill(egui::Color32::from_rgb(255, 255, 255)).inner_margin(4.0))
             .show(ctx, |ui| {
                 ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(40, 40, 40));
-                let resp = ui.scope(|ui| {
                 ui.add_space(4.0);
             egui::ScrollArea::vertical()
                 .max_height(cards_area_h)
@@ -745,8 +742,8 @@ impl eframe::App for App {
                     }
                 });
             ui.add_space(4.0);
-                });
-                resp.response.context_menu(|ui| {
+                let r = ui.interact(ui.max_rect(), egui::Id::new("tab_cards"), egui::Sense::click());
+                r.context_menu(|ui| {
                     ui.label(egui::RichText::new("控件: tab_cards").color(egui::Color32::from_rgb(150,150,150)).size(11.0));
                 });
         });
@@ -763,7 +760,6 @@ impl eframe::App for App {
                     }),
             )
             .show(ctx, |ui| {
-                let resp = ui.scope(|ui| {
                 if let Some(idx) = self.active_tab {
                     if idx < self.tabs.len() {
                         let tab = &self.tabs[idx];
@@ -866,8 +862,8 @@ impl eframe::App for App {
                         );
                     });
                 }
-                });
-                resp.response.context_menu(|ui| {
+                let r = ui.interact(ui.max_rect(), egui::Id::new("output_panel"), egui::Sense::click());
+                r.context_menu(|ui| {
                     ui.label(egui::RichText::new("控件: output_panel").color(egui::Color32::from_rgb(180,180,180)).size(11.0));
                 });
         });
