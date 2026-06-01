@@ -149,8 +149,8 @@ fn setup_theme(ctx: &egui::Context) {
     ctx.set_visuals(visuals);
 
     let mut style = (*ctx.style()).clone();
-    style.spacing.scroll.floating = true;
-    style.spacing.scroll.bar_width = 8.0;
+    style.spacing.scroll.floating = false;
+    style.spacing.scroll.bar_width = 10.0;
     ctx.set_style(style);
 }
 
