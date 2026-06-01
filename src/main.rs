@@ -147,11 +147,6 @@ fn setup_theme(ctx: &egui::Context) {
     visuals.widgets.active.bg_fill = egui::Color32::from_rgb(55, 55, 65);
     visuals.selection.bg_fill = egui::Color32::from_rgb(50, 80, 120);
     ctx.set_visuals(visuals);
-
-    let mut style = (*ctx.style()).clone();
-    style.spacing.scroll.floating = true;
-    style.spacing.scroll.bar_width = 0.0;
-    ctx.set_style(style);
 }
 
 struct BatTab {
@@ -169,7 +164,6 @@ struct App {
     active_tab: Option<usize>,
     edit_buffers: std::collections::HashMap<usize, String>,
     confirm_delete: Option<usize>,
-    detect_links: bool,
 }
 
 impl App {
@@ -180,7 +174,6 @@ impl App {
             active_tab: None,
             edit_buffers: std::collections::HashMap::new(),
             confirm_delete: None,
-            detect_links: true,
         };
         for tc in config.tabs {
             let path = PathBuf::from(&tc.path);
@@ -495,14 +488,8 @@ impl eframe::App for App {
                     if ui.button("最小化到托盘").clicked() {
                         self.hide_to_tray();
                     }
-                    ui.separator();
-                    ui.checkbox(&mut self.detect_links, "链接检测");
                 });
-                });
-                let r = ui.interact(ui.max_rect(), egui::Id::new("toolbar_top"), egui::Sense::click());
-                r.context_menu(|ui| {
-                    ui.label(egui::RichText::new("控件: toolbar_top").color(egui::Color32::from_rgb(150,150,150)).size(11.0));
-                });
+            });
         });
 
         egui::TopBottomPanel::bottom("bottom")
@@ -525,10 +512,6 @@ impl eframe::App for App {
                             );
                         });
                     }
-                });
-                let r = ui.interact(ui.max_rect(), egui::Id::new("status_bar_bottom"), egui::Sense::click());
-                r.context_menu(|ui| {
-                    ui.label(egui::RichText::new("控件: status_bar_bottom").color(egui::Color32::from_rgb(150,150,150)).size(11.0));
                 });
         });
 
@@ -742,22 +725,14 @@ impl eframe::App for App {
                     }
                 });
             ui.add_space(4.0);
-                let r = ui.interact(ui.max_rect(), egui::Id::new("tab_cards"), egui::Sense::click());
-                r.context_menu(|ui| {
-                    ui.label(egui::RichText::new("控件: tab_cards").color(egui::Color32::from_rgb(150,150,150)).size(11.0));
-                });
         });
 
         egui::CentralPanel::default()
             .frame(
                 egui::Frame::none()
-                    .fill(egui::Color32::from_rgb(255, 255, 255))
-                    .inner_margin(egui::Margin {
-                        left: 8.0,
-                        right: -1.0,
-                        top: 4.0,
-                        bottom: 0.0,
-                    }),
+                    .fill(egui::Color32::from_rgb(30, 30, 35))
+                    .inner_margin(egui::Margin::symmetric(8.0, 4.0))
+                    .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(200, 200, 200))),
             )
             .show(ctx, |ui| {
                 if let Some(idx) = self.active_tab {
@@ -774,76 +749,33 @@ impl eframe::App for App {
                             ui.label(
                                 egui::RichText::new(&status)
                                     .strong()
-                                    .color(egui::Color32::from_rgb(40, 40, 40)),
+                                    .color(egui::Color32::from_rgb(220, 220, 220)),
                             );
                             ui.separator();
                             ui.label(
                                 egui::RichText::new(&tab.path)
                                     .size(11.0)
-                                    .color(egui::Color32::from_rgb(100, 100, 110)),
+                                    .color(egui::Color32::from_rgb(150, 150, 160)),
                             );
                         });
                         ui.separator();
 
                         let output = tab.output.lock().unwrap().clone();
-                        ui.style_mut().visuals.override_text_color = Some(egui::Color32::from_rgb(40, 40, 40));
+                        let mut style = (*ctx.style()).clone();
+                        style.visuals.override_text_color = Some(egui::Color32::from_rgb(220, 220, 220));
+                        style.visuals.extreme_bg_color = egui::Color32::from_rgb(35, 35, 40);
+                        style.visuals.faint_bg_color = egui::Color32::from_rgb(40, 40, 45);
+                        ui.style_mut().visuals.override_text_color = Some(egui::Color32::from_rgb(220, 220, 220));
+                        ui.style_mut().visuals.extreme_bg_color = egui::Color32::from_rgb(35, 35, 40);
                         egui::ScrollArea::vertical()
                             .stick_to_bottom(true)
                             .show(ui, |ui| {
-                                let lines: Vec<&str> = output.lines().collect();
-                                let total = lines.len();
-                                let start = if total > 500 { total - 500 } else { 0 };
-                                let detect = self.detect_links;
-                                for i in start..total {
-                                    let line = lines[i];
-                                    let urls: Vec<&str> = if detect {
-                                        line.match_indices("http")
-                                            .filter_map(|(pos, _)| {
-                                                let rest = &line[pos..];
-                                                if rest.starts_with("http://") || rest.starts_with("https://") {
-                                                    let end = rest.find(|c: char| c.is_whitespace()).unwrap_or(rest.len());
-                                                    Some(&rest[..end])
-                                                } else {
-                                                    None
-                                                }
-                                            })
-                                            .collect()
-                                    } else {
-                                        Vec::new()
-                                    };
-                                    if urls.is_empty() {
-                                        ui.label(
-                                            egui::RichText::new(line)
-                                                .monospace()
-                                                .color(egui::Color32::from_rgb(40, 40, 40)),
-                                        );
-                                    } else {
-                                        ui.horizontal(|ui| {
-                                            ui.label(
-                                                egui::RichText::new(line)
-                                                    .monospace()
-                                                    .color(egui::Color32::from_rgb(40, 40, 40)),
-                                            );
-                                            for url in &urls {
-                                                let url_str = url.to_string();
-                                                let btn = ui.add(
-                                                    egui::Button::new(
-                                                        egui::RichText::new("🔗 转到")
-                                                            .size(11.0)
-                                                            .color(egui::Color32::from_rgb(255, 255, 255)),
-                                                    )
-                                                    .fill(egui::Color32::from_rgb(50, 100, 180))
-                                                    .rounding(4.0),
-                                                );
-                                                if btn.clicked() {
-                                                    let _ = std::process::Command::new("cmd")
-                                                        .args(["/C", "start", &url_str])
-                                                        .spawn();
-                                                }
-                                            }
-                                        });
-                                    }
-                                }
+                                ui.add(
+                                    egui::TextEdit::multiline(&mut output.as_str())
+                                        .font(egui::TextStyle::Monospace)
+                                        .text_color(egui::Color32::from_rgb(220, 220, 220))
+                                        .desired_width(f32::INFINITY),
+                                );
                             });
                     }
                 } else {
@@ -852,20 +784,16 @@ impl eframe::App for App {
                         ui.label(
                             egui::RichText::new("📋 CMD Runner")
                                 .size(24.0)
-                                .color(egui::Color32::from_rgb(150, 150, 160)),
+                                .color(egui::Color32::from_rgb(120, 120, 130)),
                         );
                         ui.add_space(10.0);
                         ui.label(
                             egui::RichText::new("拖入 .bat / .cmd 文件开始使用")
                                 .size(14.0)
-                                .color(egui::Color32::from_rgb(130, 130, 140)),
+                                .color(egui::Color32::from_rgb(100, 100, 110)),
                         );
                     });
                 }
-                let r = ui.interact(ui.max_rect(), egui::Id::new("output_panel"), egui::Sense::click());
-                r.context_menu(|ui| {
-                    ui.label(egui::RichText::new("控件: output_panel").color(egui::Color32::from_rgb(180,180,180)).size(11.0));
-                });
         });
 
         if let Some(idx) = self.confirm_delete {
