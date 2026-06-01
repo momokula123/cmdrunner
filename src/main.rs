@@ -486,12 +486,12 @@ impl eframe::App for App {
                         self.close_tab(i);
                     }
                 }
-                ui.separator();
-                ui.checkbox(&mut self.detect_links, "链接检测");
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button("最小化到托盘").clicked() {
                         self.hide_to_tray();
                     }
+                    ui.separator();
+                    ui.checkbox(&mut self.detect_links, "链接检测");
                 });
             });
         });
