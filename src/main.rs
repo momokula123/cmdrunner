@@ -682,7 +682,8 @@ impl eframe::App for App {
 
                                                 ui.horizontal(|ui| {
                                                     let short_path = std::path::Path::new(&tab.path)
-                                                        .file_name()
+                                                        .parent()
+                                                        .and_then(|p| p.file_name())
                                                         .unwrap_or_default()
                                                         .to_string_lossy()
                                                         .to_string();
@@ -694,10 +695,12 @@ impl eframe::App for App {
                                                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                                         let folder_btn = ui.add(
                                                             egui::Button::new(
-                                                                egui::RichText::new("📂")
-                                                                    .size(11.0),
+                                                                egui::RichText::new("📂 打开")
+                                                                    .size(10.0)
+                                                                    .color(egui::Color32::from_rgb(100, 160, 220)),
                                                             )
-                                                            .fill(egui::Color32::TRANSPARENT),
+                                                            .fill(egui::Color32::TRANSPARENT)
+                                                            .rounding(4.0),
                                                         );
                                                         if folder_btn.clicked() {
                                                             if let Some(dir) = std::path::Path::new(&tab.path).parent() {
