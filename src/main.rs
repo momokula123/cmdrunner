@@ -767,7 +767,10 @@ impl eframe::App for App {
 }
 
 fn find_my_hwnd() {
-    use windows_sys::Win32::UI::WindowsAndMessaging::{EnumWindows, GetWindowThreadProcessId};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        EnumWindows, FindWindowW, GetWindowTextLengthW,
+        GetWindowThreadProcessId, IsWindowVisible,
+    };
 
     let our_pid = std::process::id();
 
@@ -775,19 +778,36 @@ fn find_my_hwnd() {
         hwnd: windows_sys::Win32::Foundation::HWND,
         lparam: isize,
     ) -> i32 {
+        if IsWindowVisible(hwnd) == 0 {
+            return 1;
+        }
         let mut pid: u32 = 0;
         GetWindowThreadProcessId(hwnd, &mut pid);
-        if pid == lparam as u32 {
+        if pid != lparam as u32 {
+            return 1;
+        }
+        let len = GetWindowTextLengthW(hwnd);
+        if len > 0 {
             MAIN_HWND.store(hwnd as isize, Ordering::SeqCst);
             TRAY_READY.store(true, Ordering::SeqCst);
-            0
-        } else {
-            1
+            return 0;
         }
+        1
     }
 
     unsafe {
         EnumWindows(Some(enum_cb), our_pid as isize);
+    }
+
+    if MAIN_HWND.load(Ordering::SeqCst) == 0 {
+        let title: Vec<u16> = "CMD Runner v0.6.0\0".encode_utf16().collect();
+        unsafe {
+            let hwnd = FindWindowW(std::ptr::null(), title.as_ptr());
+            if !hwnd.is_null() {
+                MAIN_HWND.store(hwnd as isize, Ordering::SeqCst);
+                TRAY_READY.store(true, Ordering::SeqCst);
+            }
+        }
     }
 }
 
