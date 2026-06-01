@@ -740,7 +740,12 @@ impl eframe::App for App {
             .frame(
                 egui::Frame::none()
                     .fill(egui::Color32::from_rgb(30, 30, 35))
-                    .inner_margin(egui::Margin::symmetric(8.0, 4.0))
+                    .inner_margin(egui::Margin {
+                        left: 8.0,
+                        right: 0.0,
+                        top: 4.0,
+                        bottom: 4.0,
+                    })
                     .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(200, 200, 200))),
             )
             .show(ctx, |ui| {
