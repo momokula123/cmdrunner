@@ -680,16 +680,34 @@ impl eframe::App for App {
                                                         .color(status_color),
                                                 );
 
-                                                let short_path = std::path::Path::new(&tab.path)
-                                                    .file_name()
-                                                    .unwrap_or_default()
-                                                    .to_string_lossy()
-                                                    .to_string();
-                                                ui.label(
-                                                    egui::RichText::new(&short_path)
-                                                        .size(9.0)
-                                                        .color(egui::Color32::from_rgb(120, 120, 130)),
-                                                );
+                                                ui.horizontal(|ui| {
+                                                    let short_path = std::path::Path::new(&tab.path)
+                                                        .file_name()
+                                                        .unwrap_or_default()
+                                                        .to_string_lossy()
+                                                        .to_string();
+                                                    ui.label(
+                                                        egui::RichText::new(&short_path)
+                                                            .size(9.0)
+                                                            .color(egui::Color32::from_rgb(120, 120, 130)),
+                                                    );
+                                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                                        let folder_btn = ui.add(
+                                                            egui::Button::new(
+                                                                egui::RichText::new("📂")
+                                                                    .size(11.0),
+                                                            )
+                                                            .fill(egui::Color32::TRANSPARENT),
+                                                        );
+                                                        if folder_btn.clicked() {
+                                                            if let Some(dir) = std::path::Path::new(&tab.path).parent() {
+                                                                let _ = std::process::Command::new("explorer")
+                                                                    .arg(dir)
+                                                                    .spawn();
+                                                            }
+                                                        }
+                                                    });
+                                                });
                                             });
                                         },
                                     );
