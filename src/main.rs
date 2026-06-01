@@ -147,6 +147,11 @@ fn setup_theme(ctx: &egui::Context) {
     visuals.widgets.active.bg_fill = egui::Color32::from_rgb(55, 55, 65);
     visuals.selection.bg_fill = egui::Color32::from_rgb(50, 80, 120);
     ctx.set_visuals(visuals);
+
+    let mut style = (*ctx.style()).clone();
+    style.spacing.scroll.floating = true;
+    style.spacing.scroll.bar_width = 8.0;
+    ctx.set_style(style);
 }
 
 struct BatTab {
@@ -768,7 +773,6 @@ impl eframe::App for App {
                         ui.style_mut().visuals.override_text_color = Some(egui::Color32::from_rgb(220, 220, 220));
                         egui::ScrollArea::vertical()
                             .stick_to_bottom(true)
-                            .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
                             .show(ui, |ui| {
                                 let lines: Vec<&str> = output.lines().collect();
                                 let total = lines.len();
