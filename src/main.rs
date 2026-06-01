@@ -164,6 +164,7 @@ struct App {
     active_tab: Option<usize>,
     edit_buffers: std::collections::HashMap<usize, String>,
     confirm_delete: Option<usize>,
+    detect_links: bool,
 }
 
 impl App {
@@ -174,6 +175,7 @@ impl App {
             active_tab: None,
             edit_buffers: std::collections::HashMap::new(),
             confirm_delete: None,
+            detect_links: true,
         };
         for tc in config.tabs {
             let path = PathBuf::from(&tc.path);
@@ -484,6 +486,8 @@ impl eframe::App for App {
                         self.close_tab(i);
                     }
                 }
+                ui.separator();
+                ui.checkbox(&mut self.detect_links, "链接检测");
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button("最小化到托盘").clicked() {
                         self.hide_to_tray();
@@ -768,19 +772,24 @@ impl eframe::App for App {
                                 let lines: Vec<&str> = output.lines().collect();
                                 let total = lines.len();
                                 let start = if total > 500 { total - 500 } else { 0 };
+                                let detect = self.detect_links;
                                 for i in start..total {
                                     let line = lines[i];
-                                    let urls: Vec<&str> = line.match_indices("http")
-                                        .filter_map(|(pos, _)| {
-                                            let rest = &line[pos..];
-                                            if rest.starts_with("http://") || rest.starts_with("https://") {
-                                                let end = rest.find(|c: char| c.is_whitespace()).unwrap_or(rest.len());
-                                                Some(&rest[..end])
-                                            } else {
-                                                None
-                                            }
-                                        })
-                                        .collect();
+                                    let urls: Vec<&str> = if detect {
+                                        line.match_indices("http")
+                                            .filter_map(|(pos, _)| {
+                                                let rest = &line[pos..];
+                                                if rest.starts_with("http://") || rest.starts_with("https://") {
+                                                    let end = rest.find(|c: char| c.is_whitespace()).unwrap_or(rest.len());
+                                                    Some(&rest[..end])
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                            .collect()
+                                    } else {
+                                        Vec::new()
+                                    };
                                     if urls.is_empty() {
                                         ui.label(
                                             egui::RichText::new(line)
