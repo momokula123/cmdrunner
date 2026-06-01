@@ -48,14 +48,66 @@ impl Config {
     }
 }
 
+fn create_egui_icon() -> egui::IconData {
+    let size = 32;
+    let mut rgba = vec![0u8; size * size * 4];
+    for y in 0..size {
+        for x in 0..size {
+            let idx = (y * size + x) * 4;
+            rgba[idx] = 0x33;
+            rgba[idx + 1] = 0x66;
+            rgba[idx + 2] = 0xCC;
+            rgba[idx + 3] = 255;
+        }
+    }
+    let c_pixels: &[(i32, i32)] = &[
+        (8,4),(9,4),(10,4),(11,4),(12,4),(13,4),
+        (6,5),(7,5),
+        (5,6),(6,6),
+        (5,7),(6,7),
+        (5,8),(6,8),
+        (5,9),(6,9),
+        (5,10),(6,10),
+        (5,11),(6,11),
+        (5,12),(6,12),
+        (5,13),(6,13),
+        (5,14),(6,14),
+        (5,15),(6,15),
+        (5,16),(6,16),
+        (6,17),(7,17),
+        (8,18),(9,18),(10,18),(11,18),(12,18),(13,18),
+    ];
+    for &(x, y) in c_pixels {
+        for dy in 0..2i32 {
+            for dx in 0..2i32 {
+                let px = x + dx;
+                let py = y + dy;
+                if px >= 0 && py >= 0 && (px as usize) < size && (py as usize) < size {
+                    let idx = ((py as usize) * size + (px as usize)) * 4;
+                    rgba[idx] = 255;
+                    rgba[idx + 1] = 255;
+                    rgba[idx + 2] = 255;
+                    rgba[idx + 3] = 255;
+                }
+            }
+        }
+    }
+    egui::IconData {
+        rgba,
+        width: size as u32,
+        height: size as u32,
+    }
+}
+
 fn main() -> eframe::Result {
     std::thread::spawn(setup_tray);
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("CMD Runner v0.6.0")
+            .with_title("CMD Runner v0.7.0")
             .with_inner_size([900.0, 650.0])
-            .with_min_inner_size([600.0, 400.0]),
+            .with_min_inner_size([600.0, 400.0])
+            .with_icon(create_egui_icon()),
         ..Default::default()
     };
 
