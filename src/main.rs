@@ -761,21 +761,59 @@ impl eframe::App for App {
                         ui.separator();
 
                         let output = tab.output.lock().unwrap().clone();
-                        let mut style = (*ctx.style()).clone();
-                        style.visuals.override_text_color = Some(egui::Color32::from_rgb(220, 220, 220));
-                        style.visuals.extreme_bg_color = egui::Color32::from_rgb(35, 35, 40);
-                        style.visuals.faint_bg_color = egui::Color32::from_rgb(40, 40, 45);
                         ui.style_mut().visuals.override_text_color = Some(egui::Color32::from_rgb(220, 220, 220));
-                        ui.style_mut().visuals.extreme_bg_color = egui::Color32::from_rgb(35, 35, 40);
                         egui::ScrollArea::vertical()
                             .stick_to_bottom(true)
                             .show(ui, |ui| {
-                                ui.add(
-                                    egui::TextEdit::multiline(&mut output.as_str())
-                                        .font(egui::TextStyle::Monospace)
-                                        .text_color(egui::Color32::from_rgb(220, 220, 220))
-                                        .desired_width(f32::INFINITY),
-                                );
+                                let lines: Vec<&str> = output.lines().collect();
+                                let total = lines.len();
+                                let start = if total > 500 { total - 500 } else { 0 };
+                                for i in start..total {
+                                    let line = lines[i];
+                                    let urls: Vec<&str> = line.match_indices("http")
+                                        .filter_map(|(pos, _)| {
+                                            let rest = &line[pos..];
+                                            if rest.starts_with("http://") || rest.starts_with("https://") {
+                                                let end = rest.find(|c: char| c.is_whitespace()).unwrap_or(rest.len());
+                                                Some(&rest[..end])
+                                            } else {
+                                                None
+                                            }
+                                        })
+                                        .collect();
+                                    if urls.is_empty() {
+                                        ui.label(
+                                            egui::RichText::new(line)
+                                                .monospace()
+                                                .color(egui::Color32::from_rgb(220, 220, 220)),
+                                        );
+                                    } else {
+                                        ui.horizontal(|ui| {
+                                            ui.label(
+                                                egui::RichText::new(line)
+                                                    .monospace()
+                                                    .color(egui::Color32::from_rgb(220, 220, 220)),
+                                            );
+                                            for url in &urls {
+                                                let url_str = url.to_string();
+                                                let btn = ui.add(
+                                                    egui::Button::new(
+                                                        egui::RichText::new("🔗 转到")
+                                                            .size(11.0)
+                                                            .color(egui::Color32::from_rgb(255, 255, 255)),
+                                                    )
+                                                    .fill(egui::Color32::from_rgb(50, 100, 180))
+                                                    .rounding(4.0),
+                                                );
+                                                if btn.clicked() {
+                                                    let _ = std::process::Command::new("cmd")
+                                                        .args(["/C", "start", &url_str])
+                                                        .spawn();
+                                                }
+                                            }
+                                        });
+                                    }
+                                }
                             });
                     }
                 } else {
