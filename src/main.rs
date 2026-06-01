@@ -751,7 +751,7 @@ impl eframe::App for App {
         egui::CentralPanel::default()
             .frame(
                 egui::Frame::none()
-                    .fill(egui::Color32::from_rgb(30, 30, 35))
+                    .fill(egui::Color32::from_rgb(255, 255, 255))
                     .inner_margin(egui::Margin {
                         left: 8.0,
                         right: -1.0,
@@ -774,19 +774,19 @@ impl eframe::App for App {
                             ui.label(
                                 egui::RichText::new(&status)
                                     .strong()
-                                    .color(egui::Color32::from_rgb(220, 220, 220)),
+                                    .color(egui::Color32::from_rgb(40, 40, 40)),
                             );
                             ui.separator();
                             ui.label(
                                 egui::RichText::new(&tab.path)
                                     .size(11.0)
-                                    .color(egui::Color32::from_rgb(150, 150, 160)),
+                                    .color(egui::Color32::from_rgb(100, 100, 110)),
                             );
                         });
                         ui.separator();
 
                         let output = tab.output.lock().unwrap().clone();
-                        ui.style_mut().visuals.override_text_color = Some(egui::Color32::from_rgb(220, 220, 220));
+                        ui.style_mut().visuals.override_text_color = Some(egui::Color32::from_rgb(40, 40, 40));
                         egui::ScrollArea::vertical()
                             .stick_to_bottom(true)
                             .show(ui, |ui| {
@@ -815,14 +815,14 @@ impl eframe::App for App {
                                         ui.label(
                                             egui::RichText::new(line)
                                                 .monospace()
-                                                .color(egui::Color32::from_rgb(220, 220, 220)),
+                                                .color(egui::Color32::from_rgb(40, 40, 40)),
                                         );
                                     } else {
                                         ui.horizontal(|ui| {
                                             ui.label(
                                                 egui::RichText::new(line)
                                                     .monospace()
-                                                    .color(egui::Color32::from_rgb(220, 220, 220)),
+                                                    .color(egui::Color32::from_rgb(40, 40, 40)),
                                             );
                                             for url in &urls {
                                                 let url_str = url.to_string();
@@ -852,13 +852,13 @@ impl eframe::App for App {
                         ui.label(
                             egui::RichText::new("📋 CMD Runner")
                                 .size(24.0)
-                                .color(egui::Color32::from_rgb(120, 120, 130)),
+                                .color(egui::Color32::from_rgb(150, 150, 160)),
                         );
                         ui.add_space(10.0);
                         ui.label(
                             egui::RichText::new("拖入 .bat / .cmd 文件开始使用")
                                 .size(14.0)
-                                .color(egui::Color32::from_rgb(100, 100, 110)),
+                                .color(egui::Color32::from_rgb(130, 130, 140)),
                         );
                     });
                 }
