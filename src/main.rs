@@ -768,6 +768,7 @@ impl eframe::App for App {
                         ui.style_mut().visuals.override_text_color = Some(egui::Color32::from_rgb(220, 220, 220));
                         egui::ScrollArea::vertical()
                             .stick_to_bottom(true)
+                            .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
                             .show(ui, |ui| {
                                 let lines: Vec<&str> = output.lines().collect();
                                 let total = lines.len();
