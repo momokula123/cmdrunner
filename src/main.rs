@@ -966,11 +966,13 @@ fn setup_tray() {
 
 fn create_win32_icon() -> *mut std::ffi::c_void {
     use windows_sys::Win32::Graphics::Gdi::*;
+    use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
     unsafe {
         let hdc = GetDC(std::ptr::null_mut());
         let mem_dc = CreateCompatibleDC(hdc);
         let bmp = CreateCompatibleBitmap(hdc, 32, 32);
+        let mask_bmp = CreateBitmap(32, 32, 1, 1, std::ptr::null());
         let old_bmp = SelectObject(mem_dc, bmp);
 
         let brush = CreateSolidBrush(0x00CC6633);
@@ -1014,9 +1016,21 @@ fn create_win32_icon() -> *mut std::ffi::c_void {
         SelectObject(mem_dc, old_pen2);
 
         SelectObject(mem_dc, old_bmp);
+
+        let mut icon_info = ICONINFO {
+            fIcon: 1,
+            xHotspot: 0,
+            yHotspot: 0,
+            hbmMask: mask_bmp,
+            hbmColor: bmp,
+        };
+        let icon = CreateIconIndirect(&mut icon_info);
+
+        DeleteObject(mask_bmp as _);
+        DeleteObject(bmp as _);
         DeleteDC(mem_dc);
         ReleaseDC(std::ptr::null_mut(), hdc);
 
-        bmp
+        icon
     }
 }
