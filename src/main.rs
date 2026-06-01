@@ -409,9 +409,9 @@ impl eframe::App for App {
         let mut new_name = String::new();
 
         egui::TopBottomPanel::top("top")
-            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(255, 255, 255)).inner_margin(4.0))
+            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(45, 45, 50)).inner_margin(4.0))
             .show(ctx, |ui| {
-                ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(40, 40, 40));
+                ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(210, 210, 210));
                 ui.horizontal(|ui| {
                     ui.label("📋");
                 ui.separator();
@@ -493,13 +493,13 @@ impl eframe::App for App {
         });
 
         egui::TopBottomPanel::bottom("bottom")
-            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(255, 255, 255)).inner_margin(4.0))
+            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(45, 45, 50)).inner_margin(4.0))
             .show(ctx, |ui| {
-                ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(40, 40, 40));
+                ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(210, 210, 210));
                 ui.horizontal(|ui| {
                     ui.label(
                         egui::RichText::new("拖拽 .bat / .cmd 文件到此窗口")
-                            .color(egui::Color32::from_rgb(120, 120, 120))
+                            .color(egui::Color32::from_rgb(150, 150, 160))
                             .size(11.0),
                     );
                     let running_count = self.tabs.iter().filter(|t| t.running).count();
@@ -524,9 +524,9 @@ impl eframe::App for App {
         let cards_area_h = (cards_height + 16.0).min(available_h * 0.45);
 
         egui::TopBottomPanel::top("cards")
-            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(255, 255, 255)).inner_margin(4.0))
+            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(40, 40, 45)).inner_margin(4.0))
             .show(ctx, |ui| {
-                ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(40, 40, 40));
+                ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(210, 210, 210));
                 ui.add_space(4.0);
             egui::ScrollArea::vertical()
                 .max_height(cards_area_h)
