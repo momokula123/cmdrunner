@@ -565,9 +565,9 @@ impl eframe::App for App {
                                     let is_active = self.active_tab == Some(i);
                                     let tab = &self.tabs[i];
                                     let card_color = if is_active {
-                                        egui::Color32::from_rgb(45, 55, 72)
+                                        egui::Color32::from_rgb(245, 245, 250)
                                     } else {
-                                        egui::Color32::from_rgb(30, 35, 45)
+                                        egui::Color32::from_rgb(255, 255, 255)
                                     };
                                     let border_color = if tab.running {
                                         egui::Color32::from_rgb(72, 180, 100)
