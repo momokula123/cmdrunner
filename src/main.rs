@@ -524,9 +524,9 @@ impl eframe::App for App {
         let cards_area_h = (cards_height + 16.0).min(available_h * 0.45);
 
         egui::TopBottomPanel::top("cards")
-            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(40, 40, 45)).inner_margin(4.0))
+            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(255, 255, 255)).inner_margin(4.0))
             .show(ctx, |ui| {
-                ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(210, 210, 210));
+                ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(40, 40, 40));
                 ui.add_space(4.0);
             egui::ScrollArea::vertical()
                 .max_height(cards_area_h)
@@ -565,9 +565,9 @@ impl eframe::App for App {
                                     let is_active = self.active_tab == Some(i);
                                     let tab = &self.tabs[i];
                                     let card_color = if is_active {
-                                        egui::Color32::from_rgb(245, 245, 250)
+                                        egui::Color32::from_rgb(45, 55, 72)
                                     } else {
-                                        egui::Color32::from_rgb(255, 255, 255)
+                                        egui::Color32::from_rgb(30, 35, 45)
                                     };
                                     let border_color = if tab.running {
                                         egui::Color32::from_rgb(72, 180, 100)
