@@ -524,9 +524,9 @@ impl eframe::App for App {
         let cards_area_h = (cards_height + 16.0).min(available_h * 0.45);
 
         egui::TopBottomPanel::top("cards")
-            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(255, 255, 255)).inner_margin(4.0))
+            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(25, 25, 30)).inner_margin(4.0))
             .show(ctx, |ui| {
-                ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(40, 40, 40));
+                ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(220, 220, 220));
                 ui.add_space(4.0);
             egui::ScrollArea::vertical()
                 .max_height(cards_area_h)
