@@ -8,11 +8,15 @@ use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use std::ffi::c_void;
+use std::os::windows::io::AsRawHandle;
+
 use eframe::egui;
 use serde::{Deserialize, Serialize};
 
 static MAIN_HWND: AtomicIsize = AtomicIsize::new(0);
 static TRAY_READY: AtomicBool = AtomicBool::new(false);
+static JOB_HANDLE: AtomicIsize = AtomicIsize::new(0);
 
 #[derive(Serialize, Deserialize, Clone)]
 struct TabConfig {
@@ -100,6 +104,7 @@ fn create_egui_icon() -> egui::IconData {
 }
 
 fn main() -> eframe::Result {
+    init_job_object();
     std::thread::spawn(setup_tray);
 
     let options = eframe::NativeOptions {
@@ -156,6 +161,7 @@ struct BatTab {
     running: bool,
     done: bool,
     child: Option<Child>,
+    child_pid: Option<u32>,
     done_flag: Arc<AtomicBool>,
 }
 
@@ -194,6 +200,7 @@ impl App {
                     running: false,
                     done: false,
                     child: None,
+                    child_pid: None,
                     done_flag: Arc::new(AtomicBool::new(false)),
                 });
             }
@@ -239,6 +246,7 @@ impl App {
             running: false,
             done: false,
             child: None,
+            child_pid: None,
             done_flag: Arc::new(AtomicBool::new(false)),
         });
         self.active_tab = Some(idx);
@@ -290,18 +298,27 @@ impl App {
             .current_dir(&dir)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
-            .creation_flags(0x08000000)
+            .creation_flags(0x08000000 | 0x00000200)
             .spawn()
         {
             Ok(mut child) => {
+                let pid = child.id();
+                self.tabs[idx].child_pid = Some(pid);
+                let child_handle = child.as_raw_handle() as isize;
+                assign_to_job(child_handle);
                 let stdout = child.stdout.take().unwrap();
                 let stderr = child.stderr.take().unwrap();
 
+                let remaining = Arc::new(std::sync::atomic::AtomicUsize::new(2));
+
+                let out_clone = output.clone();
+                let rem_clone = remaining.clone();
+                let done_clone = done_flag.clone();
                 std::thread::spawn(move || {
                     let reader = BufReader::new(stdout);
                     for line in reader.lines() {
                         if let Ok(l) = line {
-                            let mut out = output.lock().unwrap();
+                            let mut out = out_clone.lock().unwrap();
                             out.push_str(&l);
                             out.push_str("\r\n");
                             if out.len() > 200000 {
@@ -310,15 +327,30 @@ impl App {
                             }
                         }
                     }
-                    let reader2 = BufReader::new(stderr);
-                    for line in reader2.lines() {
+                    if rem_clone.fetch_sub(1, Ordering::SeqCst) == 1 {
+                        done_clone.store(true, Ordering::SeqCst);
+                    }
+                });
+
+                let err_clone = output.clone();
+                let rem_clone2 = remaining.clone();
+                let done_clone2 = done_flag.clone();
+                std::thread::spawn(move || {
+                    let reader = BufReader::new(stderr);
+                    for line in reader.lines() {
                         if let Ok(l) = line {
-                            let mut out = output.lock().unwrap();
+                            let mut out = err_clone.lock().unwrap();
                             out.push_str(&l);
                             out.push_str("\r\n");
+                            if out.len() > 200000 {
+                                let cut = out.len() - 160000;
+                                *out = out[cut..].to_string();
+                            }
                         }
                     }
-                    done_flag.store(true, Ordering::SeqCst);
+                    if rem_clone2.fetch_sub(1, Ordering::SeqCst) == 1 {
+                        done_clone2.store(true, Ordering::SeqCst);
+                    }
                 });
 
                 self.tabs[idx].child = Some(child);
@@ -339,8 +371,17 @@ impl App {
         if idx >= self.tabs.len() {
             return;
         }
+        if let Some(pid) = self.tabs[idx].child_pid.take() {
+            let _ = Command::new("taskkill")
+                .args(["/F", "/T", "/PID", &pid.to_string()])
+                .creation_flags(0x08000000)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
         if let Some(mut child) = self.tabs[idx].child.take() {
             let _ = child.kill();
+            let _ = child.wait();
         }
         self.tabs[idx].running = false;
     }
@@ -371,7 +412,10 @@ impl App {
                 tab.output.lock().unwrap().push_str(&"─".repeat(50));
                 tab.output.lock().unwrap().push_str("\r\n");
                 tab.output.lock().unwrap().push_str("> ✅ 执行完毕\r\n");
-                let _ = tab.child.take();
+                if let Some(mut c) = tab.child.take() {
+                    let _ = c.wait();
+                }
+                tab.child_pid = None;
             }
         }
     }
@@ -409,9 +453,9 @@ impl eframe::App for App {
         let mut new_name = String::new();
 
         egui::TopBottomPanel::top("top")
-            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(45, 45, 50)).inner_margin(4.0))
+            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(255, 255, 255)).inner_margin(4.0))
             .show(ctx, |ui| {
-                ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(210, 210, 210));
+                ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(40, 40, 40));
                 ui.horizontal(|ui| {
                     ui.label("📋");
                 ui.separator();
@@ -453,6 +497,7 @@ impl eframe::App for App {
                                             running: false,
                                             done: false,
                                             child: None,
+                                            child_pid: None,
                                             done_flag: Arc::new(AtomicBool::new(false)),
                                         });
                                     }
@@ -493,13 +538,13 @@ impl eframe::App for App {
         });
 
         egui::TopBottomPanel::bottom("bottom")
-            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(45, 45, 50)).inner_margin(4.0))
+            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(255, 255, 255)).inner_margin(4.0))
             .show(ctx, |ui| {
-                ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(210, 210, 210));
+                ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(40, 40, 40));
                 ui.horizontal(|ui| {
                     ui.label(
                         egui::RichText::new("拖拽 .bat / .cmd 文件到此窗口")
-                            .color(egui::Color32::from_rgb(150, 150, 160))
+                            .color(egui::Color32::from_rgb(120, 120, 120))
                             .size(11.0),
                     );
                     let running_count = self.tabs.iter().filter(|t| t.running).count();
@@ -524,9 +569,9 @@ impl eframe::App for App {
         let cards_area_h = (cards_height + 16.0).min(available_h * 0.45);
 
         egui::TopBottomPanel::top("cards")
-            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(25, 25, 30)).inner_margin(4.0))
+            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(255, 255, 255)).inner_margin(4.0))
             .show(ctx, |ui| {
-                ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(220, 220, 220));
+                ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(40, 40, 40));
                 ui.add_space(4.0);
             egui::ScrollArea::vertical()
                 .max_height(cards_area_h)
@@ -1105,5 +1150,49 @@ fn create_win32_icon() -> *mut std::ffi::c_void {
         ReleaseDC(std::ptr::null_mut(), hdc);
 
         icon
+    }
+}
+
+
+fn init_job_object() {
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::JobObjects::{
+        AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+        SetInformationJobObject, JOBOBJECT_BASIC_LIMIT_INFORMATION,
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    };
+    unsafe {
+        let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
+        if job.is_null() {
+            return;
+        }
+        let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
+        info.BasicLimitInformation = JOBOBJECT_BASIC_LIMIT_INFORMATION {
+            LimitFlags: JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+            ..std::mem::zeroed()
+        };
+        let ok = SetInformationJobObject(
+            job,
+            JobObjectExtendedLimitInformation,
+            &info as *const _ as *const c_void,
+            std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+        );
+        if ok == 0 {
+            CloseHandle(job);
+            return;
+        }
+        JOB_HANDLE.store(job as isize, Ordering::SeqCst);
+        let _ = AssignProcessToJobObject; // 只引用，便于编译器保留 features
+    }
+}
+
+fn assign_to_job(child_handle: isize) {
+    use windows_sys::Win32::System::JobObjects::AssignProcessToJobObject;
+    let job = JOB_HANDLE.load(Ordering::SeqCst);
+    if job == 0 || child_handle == 0 {
+        return;
+    }
+    unsafe {
+        let _ = AssignProcessToJobObject(job as *mut c_void, child_handle as *mut c_void);
     }
 }
