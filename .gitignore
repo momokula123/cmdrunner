@@ -1,4 +1,6 @@
 /target
+/target32
+/dist
 Cargo.lock
 *.exe
 *.dll
